@@ -42,4 +42,12 @@ Options:
   --sort-dir [asc|desc]          Sort direction: asc or desc (default).
   --help                         Show this message and exit.
   ```
+Once it's listed discussions, you can perform the following actions on them:
 
+```bash
+Displayed 1 - 50 of 346 discussion.
+
+Actions: [q]: quit, [n]: next 50, [p]: previous 50, [c #<number>]: close discussion #<number>, [i #<number>]: convert #<number> to issue and close., [ca]: close all, [ia]: convert all to issues and close.
+
+Next action: 
+```
