@@ -42,7 +42,7 @@ Options:
   --sort-dir [asc|desc]          Sort direction: asc or desc (default).
   --help                         Show this message and exit.
   ```
-Once it's listed discussions, you can perform the following actions on them:
+When you've listed discussions, you can perform the following actions on them:
 
 ```bash
 Displayed 1 - 50 of 346 discussion.
