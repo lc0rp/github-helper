@@ -12,7 +12,7 @@ TERMINAL_WIDTH = 150
 @click.option('--created-before', default=None, help='Return discussions created before this date (YYYY-MM-DD).')
 @click.option('--criteria', default=None, help='key:value pairs to filter by, separated by commas. Tested:- author:<username>,category:<category_name>')
 @click.option('--limit', default=None, type=int, help='The number of items to return.')
-@click.option('--sort', default=None, type=click.Choice('updated','interactions'), help='Sort by: default, updated or interactions.')
+@click.option('--sort', default=None, type=click.Choice(['updated','interactions']), help='Sort by: default, updated or interactions.')
 @click.option('--sort-dir', default='desc', type=click.Choice(['asc','desc']), help='Sort direction: asc or desc (default).')
 def list_discussions(created_after, created_before, criteria, limit, sort, sort_dir):
     """List discussions."""
