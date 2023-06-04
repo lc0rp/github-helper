@@ -47,7 +47,14 @@ Once it's listed discussions, you can perform the following actions on them:
 ```bash
 Displayed 1 - 50 of 346 discussion.
 
-Actions: [q]: quit, [n]: next 50, [p]: previous 50, [c #<number>]: close discussion #<number>, [i #<number>]: convert #<number> to issue and close., [ca]: close all, [ia]: convert all to issues and close.
+Actions: 
+[q]: quit.
+[n]: next page.
+[p]: previous page.
+[c #<number>]: close discussion #<number>.
+[i #<number>]: convert #<number> to issue and close.
+[ca]: close all.
+[ia]: convert all to issues and close.
 
 Next action: 
 ```
