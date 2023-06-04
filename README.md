@@ -33,7 +33,7 @@ Options:
   --criteria TEXT         key:value pairs to filter by, separated by commas.
                           Tested:- author:<username>,category:<category_name>
   --limit INTEGER         The number of items to return.
-  --sort [u|p|d|a|t|e|d]  Sort by: default, updated or interactions.
+  --sort [updated|interactions]  Sort by: default, updated or interactions.
   --sort-dir [asc|desc]   Sort direction: asc or desc (default).
   --help                  Show this message and exit.
   ```
