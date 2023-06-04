@@ -26,15 +26,20 @@ Usage: github_helper.py list-discussions [OPTIONS]
   List discussions.
 
 Options:
-  --created-after TEXT    Return discussions created before this date (YYYY-
-                          MM-DD).
-  --created-before TEXT   Return discussions created before this date (YYYY-
-                          MM-DD).
-  --criteria TEXT         key:value pairs to filter by, separated by commas.
-                          Tested:- author:<username>,category:<category_name>
-  --limit INTEGER         The number of items to return.
+  --created-after TEXT           Return discussions created after this date
+                                 (YYYY-MM-DD).
+  --created-before TEXT          Return discussions created before this date
+                                 (YYYY-MM-DD).
+  --open                         Return only open discussions.
+  --closed                       Return only closed discussions.
+  --criteria TEXT                key:value pairs to filter by, separated by
+                                 commas. Tested:-
+                                 author:<username>,category:<category_name>
+  --text TEXT                    Text to search for in the discussion body,
+                                 title or comments.
+  --limit INTEGER                The number of items to return.
   --sort [updated|interactions]  Sort by: default, updated or interactions.
-  --sort-dir [asc|desc]   Sort direction: asc or desc (default).
-  --help                  Show this message and exit.
+  --sort-dir [asc|desc]          Sort direction: asc or desc (default).
+  --help                         Show this message and exit.
   ```
 

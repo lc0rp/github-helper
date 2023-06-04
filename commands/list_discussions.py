@@ -8,26 +8,29 @@ VALID_CRITERIA_KEYS = ["author", "category"]
 TERMINAL_WIDTH = 150
 
 @click.command()
-@click.option('--created-after', default=None, help='Return discussions created before this date (YYYY-MM-DD).')
+@click.option('--created-after', default=None, help='Return discussions created after this date (YYYY-MM-DD).')
 @click.option('--created-before', default=None, help='Return discussions created before this date (YYYY-MM-DD).')
+@click.option('--open', is_flag=True, help='Return only open discussions.')
+@click.option('--closed', is_flag=True, help='Return only closed discussions.')
 @click.option('--criteria', default=None, help='key:value pairs to filter by, separated by commas. Tested:- author:<username>,category:<category_name>')
+@click.option('--text', default=None, help='Text to search for in the discussion body, title or comments.')
 @click.option('--limit', default=None, type=int, help='The number of items to return.')
 @click.option('--sort', default=None, type=click.Choice(['updated','interactions']), help='Sort by: default, updated or interactions.')
 @click.option('--sort-dir', default='desc', type=click.Choice(['asc','desc']), help='Sort direction: asc or desc (default).')
-def list_discussions(created_after, created_before, criteria, limit, sort, sort_dir):
+def list_discussions(created_after, created_before, open, closed, criteria, text, limit, sort, sort_dir):
     """List discussions."""
     click.echo(f"Listing discussions...\n")
     github_client = GithubGqlClient()
     # results = github_client.get_discussions(ids=ids) # , criteria=criteria, dry_run=dry_run)=
     query_parts = []
     if created_after is not None:
-        date_query = f"created: {created_after}"
+        date_query = f"created:{created_after}"
         if created_before is not None:
             date_query += f"..{created_before}"
         query_parts.append(date_query)
     
     elif created_before is not None:
-        query_parts.append(f"created: ..{created_before}")
+        query_parts.append(f"created:<{created_before}")
         
     if criteria is not None:
         # split criteria into key-value pairs
@@ -39,15 +42,18 @@ def list_discussions(created_after, created_before, criteria, limit, sort, sort_
             if key not in VALID_CRITERIA_KEYS:
                 raise ValueError(f"Invalid criteria: {key}")
             else:
-                query_parts.append(f"{key}: {value}")
+                query_parts.append(f"{key}:{value}")
     
+    if text is not None:
+        query_parts.append(text)
+        
     if limit is not None:
         limit_clause = f"first: {limit}"
     else:
         limit_clause = "first: 50"
     
     if sort is not None:
-        query_parts.append(f"sort: {sort}-{sort_dir}")
+        query_parts.append(f"sort:{sort}-{sort_dir}")
     
     query_string = " ".join(query_parts)
     query = f"""query{{
@@ -77,6 +83,14 @@ def list_discussions(created_after, created_before, criteria, limit, sort, sort_
 
     # Execute the query
     results = github_client.execute(query=query)
+    
+    if closed:
+        results['search']['nodes'] = [discussion for discussion in results['search']['nodes'] if discussion['closed']]
+        results['search']['discussionCount'] = len(results['search']['nodes'])
+    elif open:
+        results['search']['nodes'] = [discussion for discussion in results['search']['nodes'] if not discussion['closed']]
+        results['search']['discussionCount'] = len(results['search']['nodes'])
+        
     manage_results(results)
     
 def manage_results(results):
@@ -111,10 +125,9 @@ def display_results(results, display_start, display_max, total):
             break
     click.echo(f"{'-'*TERMINAL_WIDTH}")
     click.echo(f"Displayed {display_start} - {display_count-1} of {total} discussion.\n")
-    if display_count < total:
-        ask_for_next(results, display_count, display_max, total)
+    ask_for_next_action(results, display_count, display_max, total)
 
-def ask_for_next(results, display_count, display_max, total):
+def ask_for_next_action(results, display_count, display_max, total):
         options = ["[q]: quit",]
         if display_count < total:
             options.append(f"[n]: next {display_max}")
@@ -144,7 +157,7 @@ def ask_for_next(results, display_count, display_max, total):
         elif command.startswith("i #"):
             convert_discussion(results, command.replace("i #", ""))
 
-        ask_for_next(results, display_count, display_max, total)
+        ask_for_next_action(results, display_count, display_max, total)
 
 def close_discussions(results):
     confirm = click.confirm("Are you sure you want to close all discussions?")
