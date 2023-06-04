@@ -1,5 +1,4 @@
 import click
-import gql
 from core.github.rest import GithubRestClient
 from core.github.gql import GithubGqlClient
 from typing import List
@@ -97,7 +96,7 @@ def manage_results(results):
     total = results['search']['discussionCount']
     click.echo(f"Found {total} discussions")
     if total > 50:
-        click.echo(f"Printing first 50:\n\n")
+        click.echo(f"Displaying 50...\n")
     
     display_max = 50 if total > 50 else total
     display_start = 1
@@ -116,10 +115,7 @@ def display_results(results, display_start, display_max, total):
             skipped += 1
             continue
         
-        # Print pretty results
-        click.echo(f"{'-'*TERMINAL_WIDTH}")
-        click.echo(f"{str(display_count).rjust(2, ' ')}: {discussion['createdAt']} - \"#{discussion['number']} {discussion['title']}\" by {discussion['author']['login']}")
-        click.echo(f"    Comments: {discussion['comments']['totalCount']} | Status: {'Closed' if discussion['closed'] else 'Open'} | URL: {discussion['url']}")
+        display_discussion(discussion, display_count, display_max)
         display_count += 1
         if display_count > display_count_max:
             break
@@ -135,8 +131,8 @@ def ask_for_next_action(results, display_count, display_max, total):
         if display_count > display_max:
             options.append(f"[p]: previous {display_max}")
             
-        options.append(f"[c #<number>]: close discussion #<number>")
-        options.append(f"[i #<number>]: convert #<number> to issue and close.")
+        options.append(f"[c <number>,<number>]: close discussions.")
+        options.append(f"[i <number>,<number>]: convert to issues and close.")
         options.append(f"[ca]: close all")
         options.append(f"[ia]: convert all to issues and close.")
         
@@ -152,50 +148,78 @@ def ask_for_next_action(results, display_count, display_max, total):
             close_discussions(results)
         elif command == "ia":
             convert_discussions(results)
-        elif command.startswith("c #"):
-            close_discussion(results, command.replace("c #", ""))
-        elif command.startswith("i #"):
-            convert_discussion(results, command.replace("i #", ""))
+        elif command.startswith("c "):
+            close_discussions(results, command.replace("c ", ""))
+        elif command.startswith("i "):
+            convert_discussions(results, command.replace("i ", ""))
 
         ask_for_next_action(results, display_count, display_max, total)
 
-def close_discussions(results):
-    confirm = click.confirm("Are you sure you want to close all discussions?")
-    if confirm:
-        for discussion in results['search']['nodes']:
-            close_discussion(results, discussion['number'], no_confirm=True)
-        click.echo(f"Closed all discussions. Exiting.")
-        exit()
-    else:
-        return
+def close_discussions(results, numbers=None):
+    confirm = click.confirm("Are you sure you want to close the discussions?")
     
-def convert_discussions(results):
-    confirm = click.confirm("Are you sure you want to convert all discussions to issues? This will close all discussions.")
-    if confirm:
-        for discussion in results['search']['nodes']:
-            convert_discussion(results, discussion['number'], no_confirm=True)
-        click.echo(f"Converted all discussions to issues. Exiting.")
-        exit()
-    else:
+    if not confirm:
         return
+    else:
+        discussions_to_close = []
+        if numbers is not None:
+            for number in str(numbers).split(','):
+                discussions_to_close.append(get_discussion(results, number))
+        else:
+            discussions_to_close = results['search']['nodes']
+            
+        for discussion in discussions_to_close:
+            close_discussion(results, discussion['number'], no_confirm=True)
+            
+        if numbers is not None:
+            click.echo(f"Closed discussions {numbers}.")
+            return
+        else:
+            click.echo(f"Closed all discussions. Exiting.")
+            exit()
+            
+    
+def convert_discussions(results, numbers=None):
+    confirm = click.confirm("Are you sure you want to convert the discussions to issues? This will also close the discussions.")
+    
+    if not confirm:
+        return
+    else:
+        discussions_to_convert = []
+        if numbers is not None:
+            for number in str(numbers).split(','):
+                discussions_to_convert.append(get_discussion(results, number))
+        else:
+            discussions_to_convert = results['search']['nodes']
+        
+        for discussion in discussions_to_convert:
+            convert_discussion(results, discussion['number'], no_confirm=True)
+        
+        if numbers is not None:
+            click.echo(f"Converted discussions {numbers}.")
+            return
+        else:
+            click.echo(f"Converted all discussions to issues. Exiting.")
+            exit()
     
 def close_discussion(results, number, no_confirm=False):
     discussion = get_discussion(results, number)
     display_discussion(discussion)
+    click.echo(f"{'-'*TERMINAL_WIDTH}")
     if not no_confirm:
         confirm = click.confirm(f"Are you sure you want to close discussion #{number}?")
         if not confirm:
             return
     github_client = GithubGqlClient()
-    mutation = gql(f"""
+    mutation = f"""
         mutation {{
-            closeDiscussion(input: {{id: "{discussion['id']}"}}) {{
+            closeDiscussion(input: {{discussionId: "{discussion['id']}"}}) {{
                 clientMutationId
             }}
         }}
-    """)
+    """
 
-    github_client.execute(mutation)
+    github_client.execute(query=mutation)
     click.echo(f"Closed discussion #{number}. Displayed results may not be updated till next search.")
 
 def convert_discussion(results, number, no_confirm=False):
@@ -207,7 +231,7 @@ def convert_discussion(results, number, no_confirm=False):
             return
     github_client = GithubRestClient()
     # Create issue
-    issue = github_client.create_issue(title=discussion['title'], body=discussion['bodyText'] + f"\n\nFrom discussion #{discussion[number]}: {discussion['url']}")
+    issue = github_client.create_issue(title=discussion['title'], body=discussion['bodyText'] + f"\n\nFrom discussion #{discussion['number']}: {discussion['url']}")
     click.echo(f"Created issue #{issue.id} from discussion #{number}.")
     # Close discussion
     close_discussion(results, number, no_confirm=True)
@@ -217,12 +241,26 @@ def get_discussion(results, number):
         if discussion['number'] == int(number):
             return discussion
         
-def display_discussion(discussion):
+def display_discussion(discussion, display_count=0, total=0):
+    if total and display_count:
+        # Figure out the number of spaces to pad the number with
+        num_digits = len(str(total))
+        display_count_str = str(display_count).rjust(num_digits, ' ') + ". | "
+        row_prefix = f"{' '*(num_digits+1)} | " 
+    elif display_count:
+        display_count_str = str(display_count).rjust(2, ' ') + ". | "
+        row_prefix = f"{' '*(3)} | "
+    else:
+        display_count_str = ""
+        row_prefix = ""
+        
     click.echo(f"{'-'*TERMINAL_WIDTH}")
-    click.echo(f"#{discussion['number']} {discussion['title']} by {discussion['author']['login']}")
-    click.echo(f"    Comments: {discussion['comments']['totalCount']} | Status: {'Closed' if discussion['closed'] else 'Open'} | URL: {discussion['url']}")
-    click.echo(f"    Body: {discussion['bodyText'][0:100]}...")
-    click.echo(f"{'-'*TERMINAL_WIDTH}")
+    click.echo(f"{display_count_str}#{discussion['number']} - \"{discussion['title']}\" by {discussion['author']['login']}\n{row_prefix}")
+    body_text = discussion['bodyText'].replace("\n", "\n" + row_prefix)
+    click.echo(f"{row_prefix}{body_text[0 : TERMINAL_WIDTH - 10]}{'...'if len(body_text) > TERMINAL_WIDTH - 10 else ''}\n{row_prefix}")
+    click.echo(f"{row_prefix}URL: {discussion['url']}")
+    click.echo(f"{row_prefix}Category: {discussion['category']['name']} | Comments: {discussion['comments']['totalCount']} | Status: {'Closed' if discussion['closed'] else 'Open'}")
+    click.echo(f"{row_prefix}Created: {discussion['createdAt']} | Updated: {discussion['updatedAt']} | Last Edited: {discussion['lastEditedAt']} | Published: {discussion['publishedAt']}")
     
 def list_discussions_old():
     query_part = ("""

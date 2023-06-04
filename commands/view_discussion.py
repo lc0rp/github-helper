@@ -1,7 +1,81 @@
+import click
+import gql
+from core.github.gql import GithubGqlClient
 import requests
 from pydantic import BaseModel
 from utils.environment import GITHUB_URL, GITHUB_TOKEN
 
+
+@click.command()
+@click.option('--number', type=int, help='The number of the discussion to view.')
+@click.option('--id', type=int, help='The id of the discussion to view.')
+def view_discussion(number: int, id: int):
+    """View discussion."""
+    click.echo(f"Retrieving discussion...\n")
+    github_client = GithubGqlClient()
+    
+    if id:
+        query = gql(f"""
+            query {{
+                repository(owner: "{github_client.owner}", name: "{github_client.repository}") {{
+                    discussion(id: "{id}") {{
+                        id
+                        number
+                        title
+                        url
+                        author{{login}}
+                        category{{id,name}}
+                        comments{{totalCount}}
+                        closed
+                        createdAt
+                        publishedAt
+                        lastEditedAt
+                        updatedAt
+                        bodyText
+                    }}
+                }}
+            }}
+        """)
+    elif number:
+        pass
+        
+    query = f"""query{{
+        search(query: "repo:{github_client.owner}/{github_client.repository} {query_string}", type: DISCUSSION, {limit_clause}) {{
+                discussionCount
+                nodes {{
+                ... on Discussion {{
+                    id
+                    number
+                    title
+                    url
+                    author{{login}}
+                    category{{id,name}}
+                    comments{{totalCount}}
+                    closed
+                    createdAt
+                    publishedAt
+                    lastEditedAt
+                    updatedAt
+                    bodyText
+                }}
+            }}
+        }}
+    }}"""
+    
+    # print(query)
+
+    # Execute the query
+    results = github_client.execute(query=query)
+    manage_results(results)
+    
+def display_discussion(discussion):
+    click.echo(f"{'-'*TERMINAL_WIDTH}")
+    click.echo(f"#{discussion['number']} {discussion['title']} by {discussion['author']['login']}")
+    click.echo(f"    Comments: {discussion['comments']['totalCount']} | Status: {'Closed' if discussion['closed'] else 'Open'} | URL: {discussion['url']}")
+    click.echo(f"    Body: {discussion['bodyText'][0:100]}...")
+    click.echo(f"{'-'*TERMINAL_WIDTH}")
+    
+    
 class Discussion(BaseModel):
     id: int
     title: str

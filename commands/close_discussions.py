@@ -2,7 +2,6 @@ import click
 from core.github import close_discussion
 from utils.environment import prompt_for_missing_environment_variables
 from utils.dry_run import execute_dry_run
-from criteria.base import parse_criteria
 
 @click.command()
 @click.argument("criteria_or_ids", nargs=-1)
